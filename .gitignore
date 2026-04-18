@@ -1,0 +1,37 @@
+# Build artifacts
+libtrie.so
+trie_demo
+*.o
+*.d
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+dist/
+.env
+venv/
+.venv/
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+node_modules/
+
+# Jupyter
+notebooks/.ipynb_checkpoints/
+notebooks/*.png
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Render / secrets
+.env.local
+.env.production

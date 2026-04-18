@@ -1,0 +1,46 @@
+# render.yaml  —  Render deployment config
+#
+# Render reads this file from your repo root automatically.
+# One push to main → Render builds and deploys the Flask API.
+#
+# Free tier: 512 MB RAM, spins down after 15 min inactivity.
+# The first request after spin-down takes ~10s (cold start).
+# Upgrade to Starter ($7/mo) to keep it always-on.
+#
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: autocomplete-engine-api
+    runtime: python
+    region: oregon             # closest to most US users; change if needed
+    plan: free
+
+    # ── Build phase ───────────────────────────────────────────
+    # Render runs buildCommand before starting the server.
+    # We install g++ and compile the shared library here.
+    buildCommand: |
+      apt-get update -qq && apt-get install -y -qq g++
+      make lib
+      pip install -r requirements.txt
+
+    # ── Start phase ───────────────────────────────────────────
+    # Gunicorn is production-grade; Flask's dev server is not.
+    # 2 workers handles concurrent requests on the free tier.
+    startCommand: gunicorn app:app --workers 2 --bind 0.0.0.0:$PORT --timeout 60
+
+    # ── Environment variables ─────────────────────────────────
+    # Set these in the Render dashboard, not here (secrets stay out of git).
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: FLASK_ENV
+        value: production
+
+    # ── Health check ──────────────────────────────────────────
+    # Render pings this endpoint to confirm the service is up.
+    healthCheckPath: /health
+
+    # ── Auto-deploy ───────────────────────────────────────────
+    # Redeploy automatically whenever main branch is pushed.
+    autoDeploy: true

@@ -1,0 +1,151 @@
+# .github/workflows/ci.yml
+#
+# Runs on every push and pull request.
+# Three jobs run in parallel:
+#
+#   cpp-tests   — compile libtrie.so, run all 46 pytest tests
+#   frontend    — npm install + vite build (catches JS/JSX errors)
+#   lint        — clang-format check + flake8 (code style gate)
+#
+# The green checkmark on your repo comes from all three passing.
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]          # every branch
+  pull_request:
+    branches: [main]
+
+# Cancel in-flight runs on the same branch when a new push arrives.
+# Saves CI minutes and keeps the queue clean.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ─────────────────────────────────────────────────────────────
+jobs:
+# ─────────────────────────────────────────────────────────────
+
+  # ── Job 1: compile C++ + run Python tests ─────────────────
+  cpp-tests:
+    name: C++ build + pytest (46 tests)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # g++ 11 ships on ubuntu-22.04; explicitly confirm version
+      - name: Verify compiler
+        run: g++ --version
+
+      # Compile the shared library exactly as documented in the README
+      - name: Build libtrie.so
+        run: make lib
+
+      # Confirm the .so was actually produced and is non-empty
+      - name: Verify shared library
+        run: |
+          ls -lh libtrie.so
+          file libtrie.so
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install pytest flask flask-limiter flask-cors
+
+      # Run the full suite; --tb=short prints compact tracebacks on failure
+      - name: Run pytest
+        run: pytest tests/ -v --tb=short
+
+      # Upload test results as an artifact so you can inspect failures
+      # even after the workflow page scrolls away
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results
+          path: .pytest_cache/
+          retention-days: 7
+
+
+  # ── Job 2: React frontend build ───────────────────────────
+  frontend:
+    name: Frontend build (Vite + React)
+    runs-on: ubuntu-22.04
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci          # ci = clean install, respects package-lock.json
+
+      # vite build exits non-zero on any JSX/import/syntax error
+      - name: Build
+        run: npm run build
+
+      # Upload the built dist/ so you can download and inspect it
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 7
+
+
+  # ── Job 3: code quality ───────────────────────────────────
+  lint:
+    name: Code quality
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install linters
+        run: pip install flake8
+
+      # flake8 config lives in setup.cfg (created below).
+      # E501 = line too long (ignored — long lines are fine in test files).
+      # W503 = line break before binary operator (style preference).
+      - name: Python lint (flake8)
+        run: |
+          flake8 app.py tests/ \
+            --max-line-length=100 \
+            --extend-ignore=E501,W503 \
+            --statistics
+
+      # clang-format --dry-run exits 1 if it would change any file.
+      # Keeps C++ style consistent without blocking on minor issues.
+      - name: Install clang-format
+        run: sudo apt-get install -y clang-format
+
+      - name: C++ style check (clang-format)
+        run: |
+          clang-format --dry-run --Werror \
+            --style="{BasedOnStyle: Google, IndentWidth: 4, ColumnLimit: 100}" \
+            trie.hpp trie_lib.cpp || echo "Style issues found (non-blocking)"
+        continue-on-error: true    # advisory only — don't fail the build on style
