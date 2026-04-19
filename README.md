@@ -13,7 +13,7 @@
 <!-- Record: open the app, type "machine learning" slowly, let the Trie animate -->
 <!-- Tools: Loom, ScreenToGif, or macOS Screenshot → Record Selected Portion -->
 
-**[Live Demo →](https://your-app.vercel.app)**
+**[Live Demo →](https://prashantmeena001.github.io/autocomplete-engine/)**
 
 ---
 
