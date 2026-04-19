@@ -1,21 +1,3 @@
-# Real-Time Autocomplete Engine
-
-![CI](https://github.com/YOUR_USERNAME/autocomplete-engine/actions/workflows/ci.yml/badge.svg)
-![C++17](https://img.shields.io/badge/C++-17-blue?logo=cplusplus)
-![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)
-![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)
-
-> A production-grade autocomplete engine built from scratch —
-> custom Trie, min-heap top-K retrieval, LRU cache, fuzzy matching,
-> and an animated D3 Trie visualizer.
-
-<!-- REPLACE THIS with your screen recording GIF -->
-<!-- Record: open the app, type "machine learning" slowly, let the Trie animate -->
-<!-- Tools: Loom, ScreenToGif, or macOS Screenshot → Record Selected Portion -->
-
-**[Live Demo →](https://prashantmeena001.github.io/autocomplete-engine/)**
-
----
 
 ## Why this project
 
