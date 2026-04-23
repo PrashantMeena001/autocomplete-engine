@@ -100,17 +100,11 @@ analysis with plots.
 ## Run locally
 
 ```bash
-# 1. Build the C++ shared library
-make lib                          # compiles libtrie.so
+make lib            
 
-# 2. Install Python deps + run tests
 pip install pytest flask flask-limiter flask-cors
-pytest tests/ -v                  # 46 tests, all pass in < 1s
-
-# 3. Start the API
-python app.py                     # http://localhost:5000
-
-# 4. Start the frontend (separate terminal)
+pytest tests/ -v        
+python app.py                  
 cd frontend
 npm install && npm run dev        # http://localhost:5173
 ```
