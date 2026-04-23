@@ -24,8 +24,7 @@ LIB_PATH = pathlib.Path(__file__).parent.parent / "libtrie.so"
 
 if not LIB_PATH.exists():
     pytest.exit(
-        f"libtrie.so not found at {LIB_PATH}.\n"
-        "Run 'make lib' first.",
+        f"libtrie.so not found at {LIB_PATH}.\n" "Run 'make lib' first.",
         returncode=1,
     )
 
@@ -33,48 +32,53 @@ _lib = ctypes.CDLL(str(LIB_PATH))
 
 # ── ctypes signatures ─────────────────────────────────────────
 
-_lib.trie_create.argtypes               = [ctypes.c_int]
-_lib.trie_create.restype                = ctypes.c_void_p
+_lib.trie_create.argtypes = [ctypes.c_int]
+_lib.trie_create.restype = ctypes.c_void_p
 
-_lib.trie_destroy.argtypes              = [ctypes.c_void_p]
-_lib.trie_destroy.restype               = None
+_lib.trie_destroy.argtypes = [ctypes.c_void_p]
+_lib.trie_destroy.restype = None
 
-_lib.trie_insert.argtypes               = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
-_lib.trie_insert.restype                = None
+_lib.trie_insert.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+_lib.trie_insert.restype = None
 
-_lib.trie_search.argtypes               = [ctypes.c_void_p, ctypes.c_char_p]
-_lib.trie_search.restype                = ctypes.c_int
+_lib.trie_search.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.trie_search.restype = ctypes.c_int
 
-_lib.trie_starts_with.argtypes          = [ctypes.c_void_p, ctypes.c_char_p]
-_lib.trie_starts_with.restype           = ctypes.c_int
+_lib.trie_starts_with.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.trie_starts_with.restype = ctypes.c_int
 
-_lib.trie_top_k.argtypes                = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
-_lib.trie_top_k.restype                 = ctypes.c_void_p
+_lib.trie_top_k.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+_lib.trie_top_k.restype = ctypes.c_void_p
 
-_lib.trie_free_result.argtypes          = [ctypes.c_void_p]
-_lib.trie_free_result.restype           = None
+_lib.trie_free_result.argtypes = [ctypes.c_void_p]
+_lib.trie_free_result.restype = None
 
-_lib.trie_increment_frequency.argtypes  = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
-_lib.trie_increment_frequency.restype   = ctypes.c_int
+_lib.trie_increment_frequency.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_char_p,
+    ctypes.c_int,
+]
+_lib.trie_increment_frequency.restype = ctypes.c_int
 
-_lib.trie_remove.argtypes               = [ctypes.c_void_p, ctypes.c_char_p]
-_lib.trie_remove.restype                = ctypes.c_int
+_lib.trie_remove.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.trie_remove.restype = ctypes.c_int
 
-_lib.trie_size.argtypes                 = [ctypes.c_void_p]
-_lib.trie_size.restype                  = ctypes.c_int
+_lib.trie_size.argtypes = [ctypes.c_void_p]
+_lib.trie_size.restype = ctypes.c_int
 
-_lib.trie_cache_size.argtypes           = [ctypes.c_void_p]
-_lib.trie_cache_size.restype            = ctypes.c_int
+_lib.trie_cache_size.argtypes = [ctypes.c_void_p]
+_lib.trie_cache_size.restype = ctypes.c_int
 
 _lib.trie_build_max_freq_cache.argtypes = [ctypes.c_void_p]
-_lib.trie_build_max_freq_cache.restype  = None
+_lib.trie_build_max_freq_cache.restype = None
 
-_lib.trie_levenshtein.argtypes          = [ctypes.c_char_p, ctypes.c_char_p]
-_lib.trie_levenshtein.restype           = ctypes.c_int
+_lib.trie_levenshtein.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
+_lib.trie_levenshtein.restype = ctypes.c_int
 
 # ─────────────────────────────────────────────────────────────
 #  Helpers
 # ─────────────────────────────────────────────────────────────
+
 
 def _top_k(handle, prefix: str, k: int = 10) -> list[str]:
     raw = _lib.trie_top_k(handle, prefix.encode(), ctypes.c_int(k))
@@ -89,6 +93,7 @@ def _top_k(handle, prefix: str, k: int = 10) -> list[str]:
 #  Fixtures
 # ─────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def trie():
     """Fresh Trie for each test — created and destroyed cleanly."""
@@ -102,19 +107,19 @@ def loaded_trie():
     """Trie pre-loaded with a standard dataset."""
     handle = _lib.trie_create(500)
     words = [
-        ("apple",              120),
-        ("application",        340),
-        ("apply",               85),
-        ("appetite",            42),
-        ("appreciate",         210),
-        ("approach",           175),
-        ("april",               60),
-        ("app",                500),
-        ("machine learning",   890),
-        ("machine translation",410),
-        ("machine",            300),
-        ("map",                230),
-        ("maps",               195),
+        ("apple", 120),
+        ("application", 340),
+        ("apply", 85),
+        ("appetite", 42),
+        ("appreciate", 210),
+        ("approach", 175),
+        ("april", 60),
+        ("app", 500),
+        ("machine learning", 890),
+        ("machine translation", 410),
+        ("machine", 300),
+        ("map", 230),
+        ("maps", 195),
     ]
     for word, freq in words:
         _lib.trie_insert(handle, word.encode(), ctypes.c_int(freq))
@@ -126,6 +131,7 @@ def loaded_trie():
 # ─────────────────────────────────────────────────────────────
 #  Test: insert + search
 # ─────────────────────────────────────────────────────────────
+
 
 class TestInsertSearch:
 
@@ -170,6 +176,7 @@ class TestInsertSearch:
 #  Test: top_k
 # ─────────────────────────────────────────────────────────────
 
+
 class TestTopK:
 
     def test_returns_correct_count(self, loaded_trie):
@@ -196,12 +203,12 @@ class TestTopK:
     def test_k_larger_than_matches(self, loaded_trie):
         # Only 3 words start with "ma" (machine, map, maps, machine learning, machine translation)
         results = _top_k(loaded_trie, "ma", 100)
-        assert len(results) == 5   # all of them, no crash
+        assert len(results) == 5  # all of them, no crash
 
     def test_k_equals_one(self, loaded_trie):
         results = _top_k(loaded_trie, "app", 1)
         assert len(results) == 1
-        assert results[0] == "app"   # highest frequency
+        assert results[0] == "app"  # highest frequency
 
     def test_exact_word_match_in_results(self, loaded_trie):
         results = _top_k(loaded_trie, "apple", 5)
@@ -218,6 +225,7 @@ class TestTopK:
 #  Test: LRU cache
 # ─────────────────────────────────────────────────────────────
 
+
 class TestLRUCache:
 
     def test_cache_populated_after_query(self, loaded_trie):
@@ -229,9 +237,9 @@ class TestLRUCache:
     def test_repeated_query_hits_cache(self, loaded_trie):
         _top_k(loaded_trie, "app", 5)
         size_before = _lib.trie_cache_size(loaded_trie)
-        _top_k(loaded_trie, "app", 5)   # second call — should hit cache
+        _top_k(loaded_trie, "app", 5)  # second call — should hit cache
         size_after = _lib.trie_cache_size(loaded_trie)
-        assert size_after == size_before   # no new entry = cache hit
+        assert size_after == size_before  # no new entry = cache hit
 
     def test_cache_invalidated_after_frequency_update(self, loaded_trie):
         _top_k(loaded_trie, "app", 5)
@@ -243,7 +251,7 @@ class TestLRUCache:
 
     def test_cache_respects_capacity(self):
         """A cache with capacity=2 should never exceed 2 entries."""
-        handle = _lib.trie_create(2)   # tiny cache
+        handle = _lib.trie_create(2)  # tiny cache
         words = [("alpha", 1), ("beta", 2), ("gamma", 3), ("delta", 4)]
         for w, f in words:
             _lib.trie_insert(handle, w.encode(), ctypes.c_int(f))
@@ -257,11 +265,12 @@ class TestLRUCache:
 #  Test: frequency + ranking
 # ─────────────────────────────────────────────────────────────
 
+
 class TestFrequency:
 
     def test_increment_changes_ranking(self, loaded_trie):
         before = _top_k(loaded_trie, "app", 3)
-        assert before[0] == "app"   # app(500) > application(340)
+        assert before[0] == "app"  # app(500) > application(340)
 
         # boost apple way above app
         _lib.trie_increment_frequency(loaded_trie, b"apple", ctypes.c_int(10000))
@@ -269,7 +278,9 @@ class TestFrequency:
         assert after[0] == "apple"
 
     def test_increment_nonexistent_word_returns_false(self, loaded_trie):
-        result = _lib.trie_increment_frequency(loaded_trie, b"notaword", ctypes.c_int(1))
+        result = _lib.trie_increment_frequency(
+            loaded_trie, b"notaword", ctypes.c_int(1)
+        )
         assert result == 0
 
     def test_increment_existing_word_returns_true(self, loaded_trie):
@@ -280,6 +291,7 @@ class TestFrequency:
 # ─────────────────────────────────────────────────────────────
 #  Test: delete / remove
 # ─────────────────────────────────────────────────────────────
+
 
 class TestDelete:
 
@@ -314,6 +326,7 @@ class TestDelete:
 # ─────────────────────────────────────────────────────────────
 #  Test: Levenshtein distance
 # ─────────────────────────────────────────────────────────────
+
 
 class TestLevenshtein:
 
@@ -350,6 +363,7 @@ class TestLevenshtein:
 # ─────────────────────────────────────────────────────────────
 #  Test: edge cases
 # ─────────────────────────────────────────────────────────────
+
 
 class TestEdgeCases:
 
