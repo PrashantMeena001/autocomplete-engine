@@ -1,10 +1,9 @@
-**[Live Demo →](https://autocomplete-engine-ruby.vercel.app/)**
-
 [![CI](https://github.com/PrashantMeena001/autocomplete-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/PrashantMeena001/autocomplete-engine/actions/workflows/ci.yml)
 [![C++17](https://img.shields.io/badge/C++-17-blue?logo=cplusplus)](https://github.com/PrashantMeena001/autocomplete-engine)
 [![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)](https://github.com/PrashantMeena001/autocomplete-engine)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://github.com/PrashantMeena001/autocomplete-engine)
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20Site-blue?style=for-the-badge)](https://autocomplete-engine-ruby.vercel.app)
 ## Why this project
 
 Autocomplete is one of the most common interview topics.
