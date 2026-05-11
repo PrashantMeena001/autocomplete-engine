@@ -8,9 +8,7 @@ CI runs these on every push via .github/workflows/ci.yml.
 """
 
 import ctypes
-#import os
 import pathlib
-#import sys
 import pytest
 
 # ─────────────────────────────────────────────────────────────
