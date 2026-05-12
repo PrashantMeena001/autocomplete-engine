@@ -233,23 +233,16 @@ function TrieViz({ data, prefix }) {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  StatCard
+//  StatCard (restyled for dashboard)
 // ══════════════════════════════════════════════════════════════
 
-function StatCard({ label, value, accent }) {
+function StatCard({ icon, label, value, sub, accent }) {
   return (
-    <div style={{
-      background: "#0d0d0d", border: "1px solid #1a1a1a", borderRadius: 8,
-      padding: "10px 16px", minWidth: 110,
-    }}>
-      <div style={{ fontSize: 9, color: "#333", fontFamily: "'Fira Code', monospace",
-        letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 5 }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 17, fontWeight: 600, fontFamily: "'Fira Code', monospace",
-        color: accent ? "#00e676" : "#b8b8b8" }}>
-        {value}
-      </div>
+    <div className="metric-card">
+      <div className="metric-icon">{icon}</div>
+      <div className="metric-label">{label}</div>
+      <div className={`metric-value${accent ? " accent" : ""}`}>{value}</div>
+      <div className="metric-sub">{sub}</div>
     </div>
   );
 }
@@ -321,47 +314,45 @@ export default function App() {
   const hitRate = stats.totalQueries > 0
     ? Math.round((stats.cacheHits / stats.totalQueries) * 100) : 0;
 
+  // ══════════════════════════════════════════════════════════
+  //  JSX — Premium Dashboard Layout
+  // ══════════════════════════════════════════════════════════
+
   return (
-    <div style={{ background: "#080808", minHeight: "100vh", color: "#c8c8c8",
-      fontFamily: "'Fira Code', monospace", padding: "28px 24px 36px" }}>
+    <div className="dashboard">
 
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap');
-        * { box-sizing: border-box; }
-        input::placeholder { color: #252525; }
-        input:focus { outline: none; }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #1e1e1e; border-radius: 4px; }
-      `}</style>
+      {/* ── Header ────────────────────────────────────────── */}
+      <header className="header">
+        <div className="header-left">
+          <div className="header-breadcrumb">◇ /engine</div>
+          <h1 className="header-title">
+            autocomplete<span className="accent">_</span>engine
+          </h1>
+          <p className="header-subtitle">A blazing fast, intelligent autocomplete system</p>
+          <p className="header-tech">powered by Trie · Min-Heap · LRU Cache · Levenshtein</p>
+        </div>
+        <div className="header-right">
+          <div className="status-badges">
+            <span className="status-badge live">● LIVE ON VERCEL</span>
+            <span className="status-badge">DATASET: {DATASET.length} WORDS</span>
+            <span className="status-badge">STATUS: <span className="accent">ONLINE</span></span>
+          </div>
+          <div className="algo-tabs">
+            <button className="algo-tab active"><span className="tab-icon">⊞</span> TRIE</button>
+            <button className="algo-tab"><span className="tab-icon">▽</span> MIN-HEAP</button>
+            <button className="algo-tab"><span className="tab-icon">⊡</span> LRU CACHE</button>
+            <button className="algo-tab"><span className="tab-icon">≈</span> LEVENSHTEIN</button>
+          </div>
+        </div>
+      </header>
 
-      {/* Header */}
-      <div style={{ marginBottom: 26, display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap" }}>
-        <h1 style={{ fontSize: 21, fontWeight: 600, color: "#e8e8e8", letterSpacing: "-0.02em", margin: 0 }}>
-          autocomplete<span style={{ color: "#00e676" }}>_</span>engine
-        </h1>
-        <span style={{
-          fontSize: 9, padding: "3px 10px", borderRadius: 20, letterSpacing: "0.1em",
-          border: "1px solid", borderColor: mode === "api" ? "#00e676" : "#1e1e1e",
-          color: mode === "api" ? "#00e676" : "#2e2e2e",
-        }}>
-          {mode === "api" ? "● live api" : "○ local demo"}
-        </span>
-        <span style={{ fontSize: 9, color: "#1e1e1e", marginLeft: "auto", letterSpacing: "0.06em" }}>
-          trie · min-heap · lru cache · levenshtein
-        </span>
-      </div>
-
-      {/* Search bar */}
-      <div style={{ position: "relative", marginBottom: 24, maxWidth: 580 }}>
-        <div style={{
-          display: "flex", alignItems: "center",
-          border: "1px solid", borderColor: query ? "#00e676" : "#1a1a1a",
-          borderRadius: 6, background: "#0a0a0a",
-          transition: "border-color 0.18s",
-        }}>
-          <span style={{ padding: "0 14px", color: "#00e676", fontSize: 15, userSelect: "none", opacity: 0.8 }}>›</span>
+      {/* ── Search Bar ────────────────────────────────────── */}
+      <div className="search-container">
+        <div className={`search-wrapper${query ? " active" : ""}`}>
+          <span className="search-prompt">›</span>
           <input
             ref={inputRef}
+            className="search-input"
             value={query}
             onChange={e => {
               setQuery(e.target.value); setSelIdx(-1);
@@ -373,104 +364,180 @@ export default function App() {
             onBlur={() => setTimeout(() => setIsOpen(false), 160)}
             placeholder="type a prefix…"
             autoComplete="off" spellCheck={false}
-            style={{
-              flex: 1, background: "transparent", border: "none",
-              padding: "13px 0", fontSize: 15, color: "#e0e0e0",
-              fontFamily: "'Fira Code', monospace", caretColor: "#00e676",
-            }}
           />
           {query && (
             <button
+              className="search-clear"
               onMouseDown={e => { e.preventDefault(); setQuery(""); setSuggestions([]); setIsOpen(false); }}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "#2a2a2a", padding: "0 14px", fontSize: 18 }}
             >×</button>
           )}
         </div>
+      </div>
 
-        {/* Dropdown */}
-        {isOpen && suggestions.length > 0 && (
-          <div style={{
-            position: "absolute", top: "calc(100% + 5px)", left: 0, right: 0,
-            background: "#0a0a0a", border: "1px solid #181818",
-            borderRadius: 6, zIndex: 100, boxShadow: "0 12px 40px rgba(0,0,0,0.7)",
-            overflow: "hidden",
-          }}>
-            <div style={{
-              padding: "6px 16px 5px", fontSize: 9, color: "#252525",
-              letterSpacing: "0.1em", borderBottom: "1px solid #111",
-              display: "flex", justifyContent: "space-between",
-            }}>
-              <span>SUGGESTIONS · top-K min-heap</span>
-              <span style={{ color: stats.cached ? "#00e676" : "#252525" }}>
-                {stats.latency}ms {stats.cached ? "· cached ✓" : ""}
-              </span>
+      {/* ── Content Grid ──────────────────────────────────── */}
+      <div className="content-grid">
+
+        {/* Left — Trie Panel */}
+        <div className="trie-panel panel">
+          <div className="panel-header">
+            <span>
+              TRIE TRAVERSAL {query && <>&nbsp;·&nbsp;PREFIX = &quot;{query}&quot;</>}
+            </span>
+            <div className="panel-legend">
+              <span><span className="dot green">●</span> PATH</span>
+              <span><span className="dot orange">●</span> WORD</span>
+              <span><span className="dot gray">●</span> NODE</span>
             </div>
-            {suggestions.map((s, i) => {
-              const ql = query.toLowerCase();
-              const sl = s.toLowerCase();
-              const ml2 = sl.startsWith(ql) ? query.length : 0;
-              const freq = DATASET.find(([w]) => w === s)?.[1] || "";
-              return (
-                <div
-                  key={s}
-                  onMouseDown={e => { e.preventDefault(); selectWord(s); }}
-                  onMouseEnter={() => setSelIdx(i)}
-                  style={{
-                    padding: "9px 16px", cursor: "pointer", fontSize: 13,
-                    display: "flex", justifyContent: "space-between", alignItems: "center",
-                    background: i === selIdx ? "#0e1f14" : "transparent",
-                    borderLeft: `2px solid ${i === selIdx ? "#00e676" : "transparent"}`,
-                    transition: "background 0.07s",
-                  }}
-                >
-                  <span>
-                    <span style={{ color: "#00e676" }}>{s.slice(0, ml2)}</span>
-                    <span style={{ color: "#484848" }}>{s.slice(ml2)}</span>
-                  </span>
-                  <span style={{ fontSize: 9, color: "#2a2a2a", marginLeft: 12 }}>{freq}</span>
+          </div>
+          <div className="trie-viewport">
+            <TrieViz data={vizData} prefix={debouncedQ} />
+          </div>
+          <div className="trie-controls">
+            <button className="trie-ctrl">⚙</button>
+            <button className="trie-ctrl">+</button>
+            <button className="trie-ctrl">−</button>
+            <button className="trie-ctrl">⛶</button>
+          </div>
+        </div>
+
+        {/* Right — Panels */}
+        <div className="right-panels">
+
+          {/* Suggestions */}
+          <div className="suggestions-panel panel">
+            <div className="panel-header">
+              <span>SUGGESTIONS · TOP-K (MIN-HEAP)</span>
+              <span className="accent">{stats.latency > 0 ? `${stats.latency}ms` : ""}</span>
+            </div>
+            {suggestions.length > 0 ? (
+              <div className="suggestions-list">
+                {suggestions.map((s, i) => {
+                  const ql = query.toLowerCase();
+                  const sl = s.toLowerCase();
+                  const ml2 = sl.startsWith(ql) ? query.length : 0;
+                  const freq = DATASET.find(([w]) => w === s)?.[1] || "";
+                  return (
+                    <div
+                      key={s}
+                      className={`suggestion-item${i === selIdx ? " active" : ""}`}
+                      onMouseDown={e => { e.preventDefault(); selectWord(s); }}
+                      onMouseEnter={() => setSelIdx(i)}
+                    >
+                      <span>
+                        <span className="suggestion-match">{s.slice(0, ml2)}</span>
+                        <span className="suggestion-rest">{s.slice(ml2)}</span>
+                      </span>
+                      <span className="suggestion-freq">{freq}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="suggestions-empty">
+                {query ? "no matches found" : "type to search…"}
+              </div>
+            )}
+            <div className="suggestions-footer">
+              ↑↓ navigate &nbsp;·&nbsp; enter select &nbsp;·&nbsp; esc close
+            </div>
+          </div>
+
+          {/* HOW IT WORKS */}
+          <div className="info-section panel">
+            <div className="info-title">HOW IT WORKS</div>
+            <div className="steps-grid">
+              <div className="step-card">
+                <div className="step-header">
+                  <div className="step-number">1</div>
+                  <div className="step-icon">↓</div>
                 </div>
-              );
-            })}
-            <div style={{ padding: "5px 16px", fontSize: 9, color: "#1e1e1e", borderTop: "1px solid #0f0f0f" }}>
-              ↑↓ navigate · enter select · esc close
+                <div className="step-name">Traverse Trie</div>
+                <div className="step-desc">Walk the trie following the prefix O(L)</div>
+              </div>
+              <div className="step-card">
+                <div className="step-header">
+                  <div className="step-number">2</div>
+                  <div className="step-icon">▼</div>
+                </div>
+                <div className="step-name">Collect Candidates</div>
+                <div className="step-desc">Gather all words under the node O(N)</div>
+              </div>
+              <div className="step-card">
+                <div className="step-header">
+                  <div className="step-number">3</div>
+                  <div className="step-icon">△</div>
+                </div>
+                <div className="step-name">Rank with Min-Heap</div>
+                <div className="step-desc">Keep top-K results by score O(N log K)</div>
+              </div>
+              <div className="step-card">
+                <div className="step-header">
+                  <div className="step-number">4</div>
+                  <div className="step-icon">◉</div>
+                </div>
+                <div className="step-name">Cache with LRU</div>
+                <div className="step-desc">Store results for fast future access O(1)</div>
+              </div>
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Trie panel */}
-      <div style={{ border: "1px solid #131313", borderRadius: 8, marginBottom: 14, overflow: "hidden" }}>
-        <div style={{
-          padding: "7px 16px", borderBottom: "1px solid #0f0f0f",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-        }}>
-          <span style={{ fontSize: 9, color: "#282828", letterSpacing: "0.1em" }}>
-            TRIE TRAVERSAL  {query && `· prefix="${query}"`}
-          </span>
-          <div style={{ display: "flex", gap: 14, fontSize: 9, color: "#252525" }}>
-            <span><span style={{ color: "#00e676" }}>●</span> path</span>
-            <span><span style={{ color: "#ffab40" }}>●</span> word</span>
-            <span><span style={{ color: "#1e1e1e" }}>●</span> node</span>
+          {/* ALGORITHM STACK */}
+          <div className="info-section panel">
+            <div className="info-title">ALGORITHM STACK</div>
+            <div className="algo-stack-grid">
+              <div className="algo-card">
+                <div className="algo-card-icon">⊞</div>
+                <div className="algo-card-name">Trie</div>
+                <div className="algo-card-desc">Prefix tree for fast lookups</div>
+              </div>
+              <div className="algo-card">
+                <div className="algo-card-icon">▽</div>
+                <div className="algo-card-name">Min-Heap</div>
+                <div className="algo-card-desc">Efficient top-k ranking</div>
+              </div>
+              <div className="algo-card">
+                <div className="algo-card-icon">⊡</div>
+                <div className="algo-card-name">LRU Cache</div>
+                <div className="algo-card-desc">O(1) get/set operations</div>
+              </div>
+              <div className="algo-card">
+                <div className="algo-card-icon">≈</div>
+                <div className="algo-card-name">Levenshtein</div>
+                <div className="algo-card-desc">Fuzzy matching &amp; corrections</div>
+              </div>
+            </div>
           </div>
         </div>
-        <TrieViz data={vizData} prefix={debouncedQ} />
-        <div style={{ padding: "5px 16px 9px", borderTop: "1px solid #0e0e0e",
-          fontSize: 9, color: "#202020", letterSpacing: "0.04em" }}>
-          {query
-            ? `walk O(${query.length}) → heap top_k O(N log K) → lru O(1) on cache hit`
-            : "insert O(L)  ·  top_k O(N log K)  ·  lru O(1)  ·  levenshtein O(m×n)"}
-        </div>
       </div>
 
-      {/* Stats */}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <StatCard label="latency"        value={`${stats.latency}ms`} />
-        <StatCard label="cached"         value={stats.cached ? "yes" : "no"} accent={stats.cached} />
-        <StatCard label="hit rate"       value={`${hitRate}%`} accent={hitRate > 50} />
-        <StatCard label="queries"        value={stats.totalQueries} />
-        <StatCard label="words"          value={DATASET.length} />
-        <StatCard label="mode"           value={mode} accent={mode === "api"} />
+      {/* ── Execution Trace ───────────────────────────────── */}
+      <div className="execution-trace">
+        <div className="trace-label">EXECUTION TRACE</div>
+        <div className="trace-content">
+          {query
+            ? <>walk O({query.length}) &nbsp;→&nbsp; heap top_k O(N log K) &nbsp;→&nbsp; lru O(1) on cache hit</>
+            : <>insert O(L) &nbsp;·&nbsp; top_k O(N log K) &nbsp;·&nbsp; lru O(1) &nbsp;·&nbsp; levenshtein O(m×n)</>
+          }
+        </div>
+        <span className={`trace-badge${stats.cached ? " active" : ""}`}>
+          ✦ CACHE HIT
+        </span>
       </div>
+
+      {/* ── Metrics ───────────────────────────────────────── */}
+      <div className="metrics-grid">
+        <StatCard icon="⏱" label="LATENCY" value={`${stats.latency}ms`} sub="avg response time" accent />
+        <StatCard icon="⊡" label="CACHE" value={stats.cached ? "YES" : "NO"} sub="lru cache enabled" accent={stats.cached} />
+        <StatCard icon="↗" label="HIT RATE" value={`${hitRate}%`} sub="cache effectiveness" accent={hitRate > 50} />
+        <StatCard icon="›_" label="QUERIES" value={stats.totalQueries} sub="requests made" />
+        <StatCard icon="Aa" label="WORDS" value={DATASET.length} sub="indexed words" />
+        <StatCard icon="⚡" label="MODE" value={mode === "api" ? "LIVE" : "LOCAL"} sub={mode === "api" ? "using vercel 🔺" : "client-side"} accent={mode === "api"} />
+      </div>
+
+      {/* ── Footer ────────────────────────────────────────── */}
+      <footer className="footer">
+        Built with <span className="heart">♥</span> for developers · made by <span className="accent">Prashant</span>
+      </footer>
     </div>
   );
 }
