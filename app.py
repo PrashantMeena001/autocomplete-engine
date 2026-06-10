@@ -1,27 +1,11 @@
 """
-app.py  —  Autocomplete Engine  |  Flask API
-─────────────────────────────────────────────
-Loads the compiled C++ Trie via ctypes and exposes two endpoints:
+Flask API for the Autocomplete Engine.
 
-  GET  /suggest?q=<prefix>&k=<int>   → top-K suggestions
-  POST /record                        → increment word frequency on selection
-
-Architecture
-────────────
-  Python (Flask)
-       │   ctypes
-       ▼
-  libtrie.so  (compiled C++ Trie + LRU cache)
-
-ctypes lets Python call functions in a compiled .so directly —
-no subprocess, no IPC, just a direct function call.  The overhead
-over a native Python call is ~microseconds.
-
-Run
-───
-  make lib                  # compile libtrie.so
-  pip install flask flask-limiter flask-cors
-  python app.py
+Loads the compiled C++ Trie (libtrie.so) via ctypes and exposes:
+  GET  /suggest?q=<prefix>&k=<int>&fuzzy=<0|1>
+  POST /record  { "word": "..." }
+  GET  /stats
+  GET  /health
 """
 
 import ctypes
@@ -33,10 +17,6 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-# ─────────────────────────────────────────────────────────────
-#  Load the shared library
-# ─────────────────────────────────────────────────────────────
-
 LIB_PATH = Path(__file__).parent / "libtrie.so"
 
 if not LIB_PATH.exists():
@@ -44,17 +24,7 @@ if not LIB_PATH.exists():
 
 _lib = ctypes.CDLL(str(LIB_PATH))
 
-
-# ─────────────────────────────────────────────────────────────
-#  ctypes function signatures
-#
-#  argtypes  — what Python types to pass in
-#  restype   — what C type comes back
-#
-#  Getting these wrong causes segfaults, so we declare all of
-#  them explicitly rather than relying on ctypes defaults.
-# ─────────────────────────────────────────────────────────────
-
+# ctypes signatures — getting these wrong causes segfaults.
 _lib.trie_create.argtypes = [ctypes.c_int]
 _lib.trie_create.restype = ctypes.c_void_p
 
@@ -77,12 +47,9 @@ _lib.trie_increment_frequency.argtypes = [
 ]
 _lib.trie_increment_frequency.restype = ctypes.c_int
 
-_lib.trie_top_k.argtypes = [
-    ctypes.c_void_p,  # handle
-    ctypes.c_char_p,  # prefix
-    ctypes.c_int,
-]  # k
-_lib.trie_top_k.restype = ctypes.c_void_p  # raw ptr — c_char_p would lose it
+_lib.trie_top_k.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+# Use c_void_p (not c_char_p) so ctypes doesn't auto-free the pointer before we can.
+_lib.trie_top_k.restype = ctypes.c_void_p
 
 _lib.trie_free_result.argtypes = [ctypes.c_void_p]
 _lib.trie_free_result.restype = None
@@ -103,19 +70,10 @@ _lib.trie_levenshtein.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
 _lib.trie_levenshtein.restype = ctypes.c_int
 
 
-# ─────────────────────────────────────────────────────────────
-#  Python wrapper class  (hides all ctypes details from Flask)
-# ─────────────────────────────────────────────────────────────
-
-
 class TrieEngine:
-    """
-    Thin Python wrapper around the C++ Trie shared library.
-    All encoding/decoding of bytes ↔ str lives here so Flask
-    never touches ctypes directly.
-    """
+    """Python wrapper around libtrie.so. Handles all bytes/str encoding."""
 
-    MAX_K = 20  # hard cap on suggestions per request
+    MAX_K = 20
 
     def __init__(self, cache_capacity: int = 2000):
         self._handle = _lib.trie_create(cache_capacity)
@@ -129,13 +87,9 @@ class TrieEngine:
         if hasattr(self, "_handle") and self._handle:
             _lib.trie_destroy(self._handle)
 
-    # ── insert ────────────────────────────────────────────────
-
     def insert(self, word: str, frequency: int = 1) -> None:
         _lib.trie_insert(self._handle, word.encode("utf-8"), ctypes.c_int(frequency))
         self._word_count += 1
-
-    # ── top_k ─────────────────────────────────────────────────
 
     def top_k(self, prefix: str, k: int = 10) -> tuple[list[str], bool]:
         """Returns (suggestions, was_cached)."""
@@ -146,13 +100,12 @@ class TrieEngine:
 
         results = []
         if raw:
-            # c_void_p keeps the raw address alive so we can both
-            # read the string AND free the pointer without ctypes
-            # garbage-collecting it underneath us.
             decoded = ctypes.string_at(raw).decode("utf-8")
             results = [w for w in decoded.split("\n") if w]
             _lib.trie_free_result(raw)
 
+        # Detect cache hit: if cache size didn't grow and we got results,
+        # the query was served from cache.
         cache_after = _lib.trie_cache_size(self._handle)
         was_cached = (cache_after == cache_before) and len(results) > 0
 
@@ -162,19 +115,12 @@ class TrieEngine:
 
         return results, was_cached
 
-    # ── fuzzy fallback ────────────────────────────────────────
-
     def fuzzy_top_k(self, prefix: str, k: int = 10, max_distance: int = 2) -> list[str]:
-        """
-        If exact prefix returns nothing, try prefixes within
-        edit distance max_distance of each character in the prefix.
-        Simple approach: try dropping/replacing the last character.
-        """
+        """Falls back to progressively shorter prefixes if exact match returns nothing."""
         results, _ = self.top_k(prefix, k)
         if results:
             return results
 
-        # Try trimming last char, then last two chars.
         for trim in range(1, min(3, len(prefix))):
             shorter = prefix[:-trim]
             if shorter:
@@ -182,12 +128,7 @@ class TrieEngine:
                 if results:
                     return results
 
-        # Last resort: return words whose prefix has small edit distance.
-        # (Full Levenshtein over the dataset would be O(N × L) — expensive.
-        #  In production, use a BK-tree or a trigram index instead.)
         return []
-
-    # ── record selection ──────────────────────────────────────
 
     def record_selection(self, word: str) -> bool:
         return bool(
@@ -196,12 +137,8 @@ class TrieEngine:
             )
         )
 
-    # ── build pruning cache ───────────────────────────────────
-
     def build_max_freq_cache(self) -> None:
         _lib.trie_build_max_freq_cache(self._handle)
-
-    # ── stats ─────────────────────────────────────────────────
 
     def stats(self) -> dict:
         hit_rate = (
@@ -216,21 +153,9 @@ class TrieEngine:
         }
 
 
-# ─────────────────────────────────────────────────────────────
-#  Seed data
-# ─────────────────────────────────────────────────────────────
-
-
 def load_dataset(engine: TrieEngine) -> int:
-    """
-    Load sample data.  In production replace this with:
-      engine.insert(word, freq) for each line in your dataset file.
-
-    Wikipedia titles (250k words) can be loaded from:
-      https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-all-titles.gz
-    """
+    """Seed the trie with sample data. Replace with a real corpus in production."""
     dataset = [
-        # (word, frequency)
         ("machine learning", 890),
         ("machine translation", 410),
         ("machine", 300),
@@ -297,12 +222,8 @@ def load_dataset(engine: TrieEngine) -> int:
     return len(dataset)
 
 
-# ─────────────────────────────────────────────────────────────
-#  Flask app
-# ─────────────────────────────────────────────────────────────
-
 app = Flask(__name__)
-CORS(app)  # allow React frontend on a different port
+CORS(app)
 
 limiter = Limiter(
     app=app,
@@ -310,34 +231,16 @@ limiter = Limiter(
     default_limits=["200 per minute"],
 )
 
-# Global engine — initialised once at startup.
 engine = TrieEngine(cache_capacity=2000)
 words_loaded = load_dataset(engine)
 
 print(f"Loaded {words_loaded} words into Trie.")
 
 
-# ─────────────────────────────────────────────────────────────
-#  Routes
-# ─────────────────────────────────────────────────────────────
-
-
 @app.route("/suggest", methods=["GET"])
 @limiter.limit("100 per minute")
 def suggest():
-    """
-    GET /suggest?q=<prefix>&k=<int>&fuzzy=<0|1>
-
-    Returns
-    ───────
-    {
-      "suggestions": ["machine learning", "machine translation", ...],
-      "query":       "mach",
-      "k":           10,
-      "cached":      true,
-      "latency_ms":  0.8
-    }
-    """
+    """GET /suggest?q=<prefix>&k=<int>&fuzzy=<0|1> → top-K suggestions."""
     q = request.args.get("q", "").strip()
     k = int(request.args.get("k", 10))
     fuzzy = request.args.get("fuzzy", "0") == "1"
@@ -374,17 +277,7 @@ def suggest():
 @app.route("/record", methods=["POST"])
 @limiter.limit("60 per minute")
 def record():
-    """
-    POST /record
-    Body: { "word": "machine learning" }
-
-    Increments the word's frequency in the Trie so it rises in future
-    suggestions.  Automatically invalidates relevant cache entries.
-
-    Returns
-    ───────
-    { "word": "machine learning", "success": true }
-    """
+    """POST /record { "word": "..." } → increments frequency for ranking."""
     body = request.get_json(silent=True)
 
     if not body or "word" not in body:
@@ -393,7 +286,7 @@ def record():
     word = body["word"].strip()
     success = engine.record_selection(word)
 
-    # If word doesn't exist yet, insert it with frequency 1.
+    # Auto-insert unknown words with frequency 1.
     if not success:
         engine.insert(word, 1)
 
@@ -402,18 +295,7 @@ def record():
 
 @app.route("/stats", methods=["GET"])
 def stats():
-    """
-    GET /stats
-
-    Returns engine stats for the visualizer dashboard.
-    {
-      "word_count":    57,
-      "cache_entries": 12,
-      "total_queries": 304,
-      "cache_hits":    227,
-      "hit_rate":      0.747
-    }
-    """
+    """GET /stats → engine metrics for the dashboard."""
     return jsonify(engine.stats())
 
 
@@ -421,10 +303,6 @@ def stats():
 def health():
     return jsonify({"status": "ok", "words": engine.stats()["word_count"]})
 
-
-# ─────────────────────────────────────────────────────────────
-#  Entry point
-# ─────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     print("Starting Autocomplete API on http://localhost:5000")

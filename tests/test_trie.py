@@ -1,22 +1,8 @@
-"""
-tests/test_trie.py  —  Autocomplete Engine test suite
-
-Tests the Python ctypes wrapper around libtrie.so.
-Run with:  pytest tests/ -v
-
-CI runs these on every push via .github/workflows/ci.yml.
-"""
+"""Test suite for the C++ Trie shared library (libtrie.so) via ctypes."""
 
 import ctypes
 import pathlib
 import pytest
-
-# ─────────────────────────────────────────────────────────────
-#  Locate and load the shared library
-#
-#  CI builds it fresh before running tests (see ci.yml).
-#  Locally:  make lib  then  pytest tests/
-# ─────────────────────────────────────────────────────────────
 
 LIB_PATH = pathlib.Path(__file__).parent.parent / "libtrie.so"
 
@@ -27,8 +13,6 @@ if not LIB_PATH.exists():
     )
 
 _lib = ctypes.CDLL(str(LIB_PATH))
-
-# ── ctypes signatures ─────────────────────────────────────────
 
 _lib.trie_create.argtypes = [ctypes.c_int]
 _lib.trie_create.restype = ctypes.c_void_p
@@ -73,10 +57,6 @@ _lib.trie_build_max_freq_cache.restype = None
 _lib.trie_levenshtein.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
 _lib.trie_levenshtein.restype = ctypes.c_int
 
-# ─────────────────────────────────────────────────────────────
-#  Helpers
-# ─────────────────────────────────────────────────────────────
-
 
 def _top_k(handle, prefix: str, k: int = 10) -> list[str]:
     raw = _lib.trie_top_k(handle, prefix.encode(), ctypes.c_int(k))
@@ -87,14 +67,8 @@ def _top_k(handle, prefix: str, k: int = 10) -> list[str]:
     return results
 
 
-# ─────────────────────────────────────────────────────────────
-#  Fixtures
-# ─────────────────────────────────────────────────────────────
-
-
 @pytest.fixture
 def trie():
-    """Fresh Trie for each test — created and destroyed cleanly."""
     handle = _lib.trie_create(500)
     yield handle
     _lib.trie_destroy(handle)
@@ -102,7 +76,6 @@ def trie():
 
 @pytest.fixture
 def loaded_trie():
-    """Trie pre-loaded with a standard dataset."""
     handle = _lib.trie_create(500)
     words = [
         ("apple", 120),
@@ -126,11 +99,6 @@ def loaded_trie():
     _lib.trie_destroy(handle)
 
 
-# ─────────────────────────────────────────────────────────────
-#  Test: insert + search
-# ─────────────────────────────────────────────────────────────
-
-
 class TestInsertSearch:
 
     def test_search_existing_word(self, loaded_trie):
@@ -140,7 +108,6 @@ class TestInsertSearch:
         assert _lib.trie_search(loaded_trie, b"xyz") == 0
 
     def test_prefix_is_not_word(self, loaded_trie):
-        # "ap" is a prefix but not an inserted word
         assert _lib.trie_search(loaded_trie, b"ap") == 0
 
     def test_starts_with_valid_prefix(self, loaded_trie):
@@ -170,11 +137,6 @@ class TestInsertSearch:
         assert _lib.trie_search(loaded_trie, b"machine learning") == 1
 
 
-# ─────────────────────────────────────────────────────────────
-#  Test: top_k
-# ─────────────────────────────────────────────────────────────
-
-
 class TestTopK:
 
     def test_returns_correct_count(self, loaded_trie):
@@ -183,7 +145,6 @@ class TestTopK:
 
     def test_sorted_by_frequency_descending(self, loaded_trie):
         results = _top_k(loaded_trie, "app", 5)
-        # "app" has freq=500, should be first
         assert results[0] == "app"
 
     def test_prefix_filters_correctly(self, loaded_trie):
@@ -199,14 +160,13 @@ class TestTopK:
         assert results == []
 
     def test_k_larger_than_matches(self, loaded_trie):
-        # Only 3 words start with "ma" (machine, map, maps, machine learning, machine translation)
         results = _top_k(loaded_trie, "ma", 100)
-        assert len(results) == 5  # all of them, no crash
+        assert len(results) == 5
 
     def test_k_equals_one(self, loaded_trie):
         results = _top_k(loaded_trie, "app", 1)
         assert len(results) == 1
-        assert results[0] == "app"  # highest frequency
+        assert results[0] == "app"
 
     def test_exact_word_match_in_results(self, loaded_trie):
         results = _top_k(loaded_trie, "apple", 5)
@@ -217,11 +177,6 @@ class TestTopK:
         results = _top_k(loaded_trie, prefix, 10)
         for word in results:
             assert word.startswith(prefix), f"'{word}' doesn't start with '{prefix}'"
-
-
-# ─────────────────────────────────────────────────────────────
-#  Test: LRU cache
-# ─────────────────────────────────────────────────────────────
 
 
 class TestLRUCache:
@@ -235,21 +190,19 @@ class TestLRUCache:
     def test_repeated_query_hits_cache(self, loaded_trie):
         _top_k(loaded_trie, "app", 5)
         size_before = _lib.trie_cache_size(loaded_trie)
-        _top_k(loaded_trie, "app", 5)  # second call — should hit cache
+        _top_k(loaded_trie, "app", 5)
         size_after = _lib.trie_cache_size(loaded_trie)
-        assert size_after == size_before  # no new entry = cache hit
+        assert size_after == size_before
 
     def test_cache_invalidated_after_frequency_update(self, loaded_trie):
         _top_k(loaded_trie, "app", 5)
         size_before = _lib.trie_cache_size(loaded_trie)
-        # incrementing "apple" should bust "a", "ap", "app", "appl", "apple"
         _lib.trie_increment_frequency(loaded_trie, b"apple", ctypes.c_int(1))
         size_after = _lib.trie_cache_size(loaded_trie)
         assert size_after < size_before
 
     def test_cache_respects_capacity(self):
-        """A cache with capacity=2 should never exceed 2 entries."""
-        handle = _lib.trie_create(2)  # tiny cache
+        handle = _lib.trie_create(2)
         words = [("alpha", 1), ("beta", 2), ("gamma", 3), ("delta", 4)]
         for w, f in words:
             _lib.trie_insert(handle, w.encode(), ctypes.c_int(f))
@@ -259,18 +212,12 @@ class TestLRUCache:
         _lib.trie_destroy(handle)
 
 
-# ─────────────────────────────────────────────────────────────
-#  Test: frequency + ranking
-# ─────────────────────────────────────────────────────────────
-
-
 class TestFrequency:
 
     def test_increment_changes_ranking(self, loaded_trie):
         before = _top_k(loaded_trie, "app", 3)
-        assert before[0] == "app"  # app(500) > application(340)
+        assert before[0] == "app"
 
-        # boost apple way above app
         _lib.trie_increment_frequency(loaded_trie, b"apple", ctypes.c_int(10000))
         after = _top_k(loaded_trie, "app", 3)
         assert after[0] == "apple"
@@ -286,11 +233,6 @@ class TestFrequency:
         assert result == 1
 
 
-# ─────────────────────────────────────────────────────────────
-#  Test: delete / remove
-# ─────────────────────────────────────────────────────────────
-
-
 class TestDelete:
 
     def test_remove_existing_word(self, loaded_trie):
@@ -303,7 +245,6 @@ class TestDelete:
         assert _lib.trie_size(loaded_trie) == before - 1
 
     def test_remove_preserves_prefix_sibling(self, loaded_trie):
-        # removing "apply" should NOT remove "application" or "apple"
         _lib.trie_remove(loaded_trie, b"apply")
         assert _lib.trie_search(loaded_trie, b"application") == 1
         assert _lib.trie_search(loaded_trie, b"apple") == 1
@@ -321,11 +262,6 @@ class TestDelete:
         assert _lib.trie_remove(loaded_trie, b"apply") == 0
 
 
-# ─────────────────────────────────────────────────────────────
-#  Test: Levenshtein distance
-# ─────────────────────────────────────────────────────────────
-
-
 class TestLevenshtein:
 
     def test_identical_strings(self):
@@ -341,7 +277,7 @@ class TestLevenshtein:
         assert _lib.trie_levenshtein(b"appl", b"apple") == 1
 
     def test_transposition(self):
-        # appel vs apple: 2 ops (not a transposition in standard Levenshtein)
+        # Standard Levenshtein treats transposition as 2 ops (not 1).
         assert _lib.trie_levenshtein(b"appel", b"apple") == 2
 
     def test_completely_different(self):
@@ -358,11 +294,6 @@ class TestLevenshtein:
         assert _lib.trie_levenshtein(a, b) == _lib.trie_levenshtein(b, a)
 
 
-# ─────────────────────────────────────────────────────────────
-#  Test: edge cases
-# ─────────────────────────────────────────────────────────────
-
-
 class TestEdgeCases:
 
     def test_single_character_prefix(self, loaded_trie):
@@ -370,7 +301,6 @@ class TestEdgeCases:
         assert all(w.startswith("a") for w in results)
 
     def test_full_word_as_prefix(self, loaded_trie):
-        # "apple" as prefix should return "apple" itself
         results = _top_k(loaded_trie, "apple", 5)
         assert "apple" in results
 
@@ -381,7 +311,6 @@ class TestEdgeCases:
     def test_insert_same_word_twice(self, trie):
         _lib.trie_insert(trie, b"apple", ctypes.c_int(10))
         _lib.trie_insert(trie, b"apple", ctypes.c_int(99))
-        # second insert overwrites frequency, count stays 1
         assert _lib.trie_size(trie) == 1
 
     def test_multiword_prefix_search(self, loaded_trie):

@@ -1,13 +1,7 @@
-/*
- * App.jsx  —  Real-Time Autocomplete Engine  |  Frontend
- */
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as d3 from "d3";
 
-// ══════════════════════════════════════════════════════════════
-//  JS Trie  (visualization + offline fallback)
-// ══════════════════════════════════════════════════════════════
+// Client-side Trie used for visualization and as a fallback when the API is unreachable.
 
 class TNode {
   constructor() { this.ch = {}; this.end = false; this.freq = 0; this.word = null; }
@@ -46,6 +40,7 @@ class Trie {
     return all.sort((a, b) => b[0] - a[0]).slice(0, k).map(r => r[1]);
   }
 
+  // Builds a D3-compatible hierarchy for the trie visualization.
   vizData(prefix) {
     prefix = prefix.toLowerCase().trim();
     if (!prefix) {
@@ -116,10 +111,6 @@ const DATASET = [
 const LOCAL_TRIE = new Trie();
 DATASET.forEach(([w, f]) => LOCAL_TRIE.insert(w, f));
 
-// ══════════════════════════════════════════════════════════════
-//  useDebounce
-// ══════════════════════════════════════════════════════════════
-
 function useDebounce(val, delay) {
   const [v, setV] = useState(val);
   useEffect(() => {
@@ -128,10 +119,6 @@ function useDebounce(val, delay) {
   }, [val, delay]);
   return v;
 }
-
-// ══════════════════════════════════════════════════════════════
-//  TrieViz — D3 horizontal tree
-// ══════════════════════════════════════════════════════════════
 
 function TrieViz({ data, prefix }) {
   const svgRef = useRef(null);
@@ -144,7 +131,6 @@ function TrieViz({ data, prefix }) {
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    // Glow filter
     const defs = svg.append("defs");
     const glow = defs.append("filter").attr("id", "glow")
       .attr("x", "-40%").attr("y", "-40%").attr("width", "180%").attr("height", "180%");
@@ -158,7 +144,6 @@ function TrieViz({ data, prefix }) {
 
     const g = svg.append("g").attr("transform", `translate(${ml},${mt})`);
 
-    // Links
     g.selectAll("path.lk")
       .data(root.links())
       .join("path")
@@ -169,7 +154,6 @@ function TrieViz({ data, prefix }) {
       .attr("stroke-opacity", d => d.target.data.inPath ? 1 : 0.55)
       .attr("d", d3.linkHorizontal().x(d => d.y).y(d => d.x));
 
-    // Nodes
     const ng = g.selectAll("g.nd")
       .data(root.descendants())
       .join("g")
@@ -186,7 +170,6 @@ function TrieViz({ data, prefix }) {
       .transition().duration(200).delay(d => d.data.inPath ? d.depth * 60 : 20)
       .attr("opacity", 1);
 
-    // Char inside circle
     ng.filter(d => !d.data.isRoot)
       .append("text")
       .attr("text-anchor", "middle").attr("dy", "0.35em")
@@ -199,7 +182,6 @@ function TrieViz({ data, prefix }) {
       .transition().duration(200).delay(d => d.data.inPath ? d.depth * 60 : 20)
       .attr("opacity", 1);
 
-    // Word label on end-node leaves
     ng.filter(d => d.data.isEnd && !d.children)
       .append("text")
       .attr("x", 13).attr("dy", "0.35em")
@@ -208,7 +190,6 @@ function TrieViz({ data, prefix }) {
       .text(d => { const w = d.data.word || ""; return w.length > 20 ? w.slice(0, 18) + "…" : w; })
       .attr("opacity", 0).transition().duration(280).delay(120).attr("opacity", 0.8);
 
-    // Freq annotation
     ng.filter(d => d.data.isEnd && d.data.freq > 0 && !d.children)
       .append("text")
       .attr("x", 13).attr("dy", "1.6em")
@@ -217,7 +198,6 @@ function TrieViz({ data, prefix }) {
       .text(d => `freq=${d.data.freq}`)
       .attr("opacity", 0).transition().duration(280).delay(150).attr("opacity", 0.7);
 
-    // No match label
     const noMatch = data.noMatch || (data.children?.length === 0 && prefix && !data.isEnd);
     if (noMatch) {
       g.append("text")
@@ -232,10 +212,6 @@ function TrieViz({ data, prefix }) {
   return <svg ref={svgRef} width="100%" viewBox="0 0 640 340" style={{ display: "block" }} />;
 }
 
-// ══════════════════════════════════════════════════════════════
-//  StatCard (restyled for dashboard)
-// ══════════════════════════════════════════════════════════════
-
 function StatCard({ icon, label, value, sub, accent }) {
   return (
     <div className="metric-card">
@@ -246,10 +222,6 @@ function StatCard({ icon, label, value, sub, accent }) {
     </div>
   );
 }
-
-// ══════════════════════════════════════════════════════════════
-//  App
-// ══════════════════════════════════════════════════════════════
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -265,7 +237,7 @@ export default function App() {
   const inputRef   = useRef(null);
   const debouncedQ = useDebounce(query, 260);
 
-  // ── fetch suggestions + update viz ────────────────────────
+  // Fetch suggestions from API, fall back to local trie on failure.
   useEffect(() => {
     const q = debouncedQ.trim();
     setVizData(LOCAL_TRIE.vizData(q));
@@ -294,7 +266,6 @@ export default function App() {
     return () => ctrl.abort();
   }, [debouncedQ]);
 
-  // ── keyboard nav ──────────────────────────────────────────
   const handleKeyDown = useCallback(e => {
     if (!isOpen || !suggestions.length) return;
     if (e.key === "ArrowDown")  { e.preventDefault(); setSelIdx(i => Math.min(i + 1, suggestions.length - 1)); }
@@ -314,14 +285,9 @@ export default function App() {
   const hitRate = stats.totalQueries > 0
     ? Math.round((stats.cacheHits / stats.totalQueries) * 100) : 0;
 
-  // ══════════════════════════════════════════════════════════
-  //  JSX — Premium Dashboard Layout
-  // ══════════════════════════════════════════════════════════
-
   return (
     <div className="dashboard">
 
-      {/* ── Header ────────────────────────────────────────── */}
       <header className="header">
         <div className="header-left">
           <div className="header-breadcrumb">◇ /engine</div>
@@ -346,7 +312,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* ── Search Bar ────────────────────────────────────── */}
       <div className="search-container">
         <div className={`search-wrapper${query ? " active" : ""}`}>
           <span className="search-prompt">›</span>
@@ -374,10 +339,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── Content Grid ──────────────────────────────────── */}
       <div className="content-grid">
 
-        {/* Left — Trie Panel */}
         <div className="trie-panel panel">
           <div className="panel-header">
             <span>
@@ -400,10 +363,8 @@ export default function App() {
           </div>
         </div>
 
-        {/* Right — Panels */}
         <div className="right-panels">
 
-          {/* Suggestions */}
           <div className="suggestions-panel panel">
             <div className="panel-header">
               <span>SUGGESTIONS · TOP-K (MIN-HEAP)</span>
@@ -442,7 +403,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* HOW IT WORKS */}
           <div className="info-section panel">
             <div className="info-title">HOW IT WORKS</div>
             <div className="steps-grid">
@@ -481,7 +441,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* ALGORITHM STACK */}
           <div className="info-section panel">
             <div className="info-title">ALGORITHM STACK</div>
             <div className="algo-stack-grid">
@@ -510,7 +469,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── Execution Trace ───────────────────────────────── */}
       <div className="execution-trace">
         <div className="trace-label">EXECUTION TRACE</div>
         <div className="trace-content">
@@ -524,7 +482,6 @@ export default function App() {
         </span>
       </div>
 
-      {/* ── Metrics ───────────────────────────────────────── */}
       <div className="metrics-grid">
         <StatCard icon="⏱" label="LATENCY" value={`${stats.latency}ms`} sub="avg response time" accent />
         <StatCard icon="⊡" label="CACHE" value={stats.cached ? "YES" : "NO"} sub="lru cache enabled" accent={stats.cached} />
@@ -534,7 +491,6 @@ export default function App() {
         <StatCard icon="⚡" label="MODE" value={mode === "api" ? "LIVE" : "LOCAL"} sub={mode === "api" ? "using vercel 🔺" : "client-side"} accent={mode === "api"} />
       </div>
 
-      {/* ── Footer ────────────────────────────────────────── */}
       <footer className="footer">
         Built with <span className="heart">♥</span> for developers · made by <span className="accent">Prashant</span>
       </footer>

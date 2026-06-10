@@ -1,12 +1,7 @@
 #pragma once
 
-/*
- * trie.hpp  —  TrieNode, LRUCache, Trie, levenshtein
- *
- * Identical logic to trie.cpp, refactored into a header so that:
- *   - trie_lib.cpp  can wrap it with an extern "C" C API
- *   - main.cpp      can use it directly for CLI benchmarks
- */
+// Header-only Trie with LRU cache and Levenshtein distance.
+// Shared between trie_lib.cpp (extern "C" API) and trie.cpp (CLI demo).
 
 #include <unordered_map>
 #include <vector>
@@ -18,21 +13,13 @@
 #include <list>
 #include <optional>
 
-// ─────────────────────────────────────────────────────────────
-//  TrieNode
-// ─────────────────────────────────────────────────────────────
-
 struct TrieNode {
     std::unordered_map<char, std::unique_ptr<TrieNode>> children;
     bool        is_end    = false;
     int         frequency = 0;
-    int         max_freq  = 0;
+    int         max_freq  = 0;   // max frequency in subtree, used for pruning
     std::string word;
 };
-
-// ─────────────────────────────────────────────────────────────
-//  LRUCache   O(1) get / put / invalidate
-// ─────────────────────────────────────────────────────────────
 
 class LRUCache {
     using Value  = std::vector<std::string>;
@@ -81,18 +68,12 @@ private:
     std::unordered_map<std::string,ListIt>  map_;
 };
 
-// ─────────────────────────────────────────────────────────────
-//  Trie
-// ─────────────────────────────────────────────────────────────
-
 class Trie {
 public:
     explicit Trie(int cache_capacity = 1000)
         : root_(std::make_unique<TrieNode>()),
           word_count_(0),
           cache_(cache_capacity) {}
-
-    // ── insert  O(L) ─────────────────────────────────────────
 
     void insert(const std::string& word, int frequency = 1) {
         if (word.empty()) return;
@@ -110,8 +91,6 @@ public:
         invalidate_prefix_cache(lower);
     }
 
-    // ── increment  O(L) ──────────────────────────────────────
-
     bool increment_frequency(const std::string& word, int delta = 1) {
         TrieNode* node = find_node(to_lower(word));
         if (!node || !node->is_end) return false;
@@ -119,8 +98,6 @@ public:
         invalidate_prefix_cache(to_lower(word));
         return true;
     }
-
-    // ── search / starts_with  O(L) ───────────────────────────
 
     bool search(const std::string& word) const {
         const TrieNode* n = find_node(to_lower(word));
@@ -131,8 +108,8 @@ public:
         return find_node(to_lower(prefix)) != nullptr;
     }
 
-    // ── top_k  O(L + N log K) ────────────────────────────────
-
+    // Returns the K most frequent words matching the prefix.
+    // Uses a min-heap of size K during DFS to avoid sorting the full subtree.
     std::vector<std::string> top_k(const std::string& prefix_raw, int k = 10) {
         std::string prefix = to_lower(prefix_raw);
         if (prefix.empty()) return {};
@@ -170,11 +147,9 @@ public:
         return result;
     }
 
-    // ── build_max_freq_cache  O(N) ───────────────────────────
-
+    // Annotates each node with the max frequency in its subtree.
+    // Must be called after bulk inserts before using top_k_pruned.
     void build_max_freq_cache() { build_max_freq(root_.get()); }
-
-    // ── remove  O(L) ─────────────────────────────────────────
 
     bool remove(const std::string& word_raw) {
         std::string word = to_lower(word_raw);
@@ -189,6 +164,7 @@ public:
         node->is_end = false; node->frequency = 0; node->word.clear();
         --word_count_;
         invalidate_prefix_cache(word);
+        // Prune orphaned leaf nodes back up the path.
         for (int i = (int)path.size() - 1; i >= 0; --i) {
             auto [parent, ch] = path[i];
             TrieNode* child   = parent->children[ch].get();
@@ -226,6 +202,7 @@ private:
         return m;
     }
 
+    // Busts all cache entries that are prefixes of the given word.
     void invalidate_prefix_cache(const std::string& word) {
         std::string p;
         for (char c : word) { p += c; cache_.invalidate(p); }
@@ -236,10 +213,7 @@ private:
     mutable LRUCache          cache_;
 };
 
-// ─────────────────────────────────────────────────────────────
-//  Levenshtein distance  O(m × n) time, O(min(m,n)) space
-// ─────────────────────────────────────────────────────────────
-
+// Levenshtein edit distance. O(m*n) time, O(min(m,n)) space via rolling rows.
 inline int levenshtein(const std::string& s, const std::string& t) {
     int m = (int)s.size(), n = (int)t.size();
     if (m < n) return levenshtein(t, s);
