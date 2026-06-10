@@ -1,8 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
-/* ═══════════════════════════════════════════
-   Design Tokens
-   ═══════════════════════════════════════════ */
 :root {
   --bg-primary: #060608;
   --bg-panel: #0a0f0e;
@@ -25,9 +22,6 @@
   --radius-lg: 14px;
 }
 
-/* ═══════════════════════════════════════════
-   Reset & Base
-   ═══════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
@@ -51,9 +45,6 @@ input::placeholder { color: var(--text-muted); }
 input:focus { outline: none; }
 button { cursor: pointer; font-family: var(--font-mono); }
 
-/* ═══════════════════════════════════════════
-   Dashboard Container
-   ═══════════════════════════════════════════ */
 .dashboard {
   max-width: 1200px;
   margin: 0 auto;
@@ -63,9 +54,6 @@ button { cursor: pointer; font-family: var(--font-mono); }
   flex-direction: column;
 }
 
-/* ═══════════════════════════════════════════
-   Header
-   ═══════════════════════════════════════════ */
 .header {
   display: flex;
   justify-content: space-between;
@@ -162,9 +150,6 @@ button { cursor: pointer; font-family: var(--font-mono); }
   font-size: 12px;
 }
 
-/* ═══════════════════════════════════════════
-   Search Bar
-   ═══════════════════════════════════════════ */
 .search-container { margin-bottom: 16px; }
 
 .search-wrapper {
@@ -209,9 +194,6 @@ button { cursor: pointer; font-family: var(--font-mono); }
 }
 .search-clear:hover { color: var(--text-secondary); }
 
-/* ═══════════════════════════════════════════
-   Content Grid
-   ═══════════════════════════════════════════ */
 .content-grid {
   display: grid;
   grid-template-columns: 1fr 340px;
@@ -221,9 +203,6 @@ button { cursor: pointer; font-family: var(--font-mono); }
   min-height: 0;
 }
 
-/* ═══════════════════════════════════════════
-   Shared Panel Style
-   ═══════════════════════════════════════════ */
 .panel {
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -254,9 +233,6 @@ button { cursor: pointer; font-family: var(--font-mono); }
 .panel-legend .dot.orange { color: var(--orange); }
 .panel-legend .dot.gray { color: #1e1e1e; }
 
-/* ═══════════════════════════════════════════
-   Trie Panel
-   ═══════════════════════════════════════════ */
 .trie-panel {
   display: flex;
   flex-direction: column;
@@ -302,18 +278,12 @@ button { cursor: pointer; font-family: var(--font-mono); }
   background: var(--accent-dim);
 }
 
-/* ═══════════════════════════════════════════
-   Right Panels
-   ═══════════════════════════════════════════ */
 .right-panels {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
-/* ═══════════════════════════════════════════
-   Suggestions Panel
-   ═══════════════════════════════════════════ */
 .suggestions-list {
   max-height: 220px;
   overflow-y: auto;
@@ -360,9 +330,6 @@ button { cursor: pointer; font-family: var(--font-mono); }
   font-size: 11px;
 }
 
-/* ═══════════════════════════════════════════
-   Info Sections (HOW IT WORKS / ALGO STACK)
-   ═══════════════════════════════════════════ */
 .info-section { padding: 12px 14px; }
 
 .info-title {
@@ -425,7 +392,6 @@ button { cursor: pointer; font-family: var(--font-mono); }
   line-height: 1.35;
 }
 
-/* Algorithm Stack Grid */
 .algo-stack-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -458,9 +424,6 @@ button { cursor: pointer; font-family: var(--font-mono); }
   line-height: 1.35;
 }
 
-/* ═══════════════════════════════════════════
-   Execution Trace Bar
-   ═══════════════════════════════════════════ */
 .execution-trace {
   display: flex;
   align-items: center;
@@ -505,9 +468,6 @@ button { cursor: pointer; font-family: var(--font-mono); }
   color: var(--accent);
 }
 
-/* ═══════════════════════════════════════════
-   Metrics Grid
-   ═══════════════════════════════════════════ */
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -554,9 +514,6 @@ button { cursor: pointer; font-family: var(--font-mono); }
   letter-spacing: 0.02em;
 }
 
-/* ═══════════════════════════════════════════
-   Footer
-   ═══════════════════════════════════════════ */
 .footer {
   text-align: center;
   padding: 12px 0 4px;
@@ -567,9 +524,6 @@ button { cursor: pointer; font-family: var(--font-mono); }
 .footer .heart { color: #ff4466; }
 .footer .accent { color: var(--accent); font-weight: 500; }
 
-/* ═══════════════════════════════════════════
-   Responsive
-   ═══════════════════════════════════════════ */
 @media (max-width: 900px) {
   .content-grid {
     grid-template-columns: 1fr;
